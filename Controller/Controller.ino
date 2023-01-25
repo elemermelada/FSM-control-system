@@ -1,6 +1,6 @@
 #include <Wire.h>
 
-double thr = 1250.0;
+double thr = 100.0;
 int dly = 1;
 
 double x = 0.5;
@@ -50,7 +50,7 @@ void DAC (int v, char channel, byte mode) {
 
 // TODO - corner search
 void SpiralSearch() {
-  int iters = 100;
+  int iters = 500;
   int loopStep = 10;
   double r = 0;
   double th = 0;
@@ -107,7 +107,7 @@ void SteepestDescent() {
     Serial.println(gradient[2]);
 
     // Change currentStep
-    //currentStep = max(1e-3*gradient[2]/3000.0,1e-1);
+    //currentStep = 2e-3*(10.0-9.0*pow(1.05,gradient[2]));
 
     // Return to spiral search
     if (f0<0.33*thr) {
@@ -166,5 +166,4 @@ void loop()
     SpiralSearch();
   }
   SteepestDescent();
-  delay(50000);
 }
