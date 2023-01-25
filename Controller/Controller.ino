@@ -1,43 +1,47 @@
 #include <Wire.h>
 
-float thr = 150.0;
-float n = 0;
+double thr = 300.0;
+int n = 0;
 
-float x = 0.5;
-float y = 0.5;
+double x = 0.5;
+double y = 0.5;
 bool gotcha = false;
 
-float gradient[2];
+double gradient[3];
 
-//float testF(float x1, float y1) {
+//double testF(double x1, double y1) {
 //  return (1-x1)*(1-x1) + 100*(y1-x1*x1)*(y1-x1*x1);
 //}
 
-float testF(float x1, float y1) {
-  //Serial.println("testF");
+double testF(double x1, double y1) {
+  double value = 0.0;
   DAC(int(x1*1023),'A',0);
   DAC(int(y1*1023),'B',2);
-  delay(5);
-  float value = analogRead(A3);
-  DAC(int(x*1023),'A',0);
-  DAC(int(y*1023),'B',2);
-  //Serial.println("testF - out");
+  delay(10);
+  value += analogRead(A3);
+  delay(10);
+  value += analogRead(A3);
+  delay(10);
+  value += analogRead(A3);
+  delay(10);
+  value += analogRead(A3);
+  delay(10);
+  value += analogRead(A3);
   return value;
   //return 1023*pow(pow(2.718,-(pow(x1-0.90,2)+pow(y1-0.1,2))),20);
 }
 
 void DAC (int v, char channel, byte mode) {
-  //Serial.print("Sent me to: ");
-  //Serial.println(v);
-  //Serial.print("In channel: ");
-  //Serial.println(channel);
   byte b=0;
-  Wire.beginTransmission(0x4C);
+  Wire.beginTransmission(0x4C); //0x48 or 0x4C
+    // A3 A2 L1 L0 X Sel1 Sel0 PD0
   channel-='A';
   b|=(channel<<1);
   b|=(mode<<4);
   Wire.write(b);
+    // D9 D8 D7 D6 D5 D4 D3 D2
   Wire.write(v>>2);
+    // D1 D0 X X X X X X
   Wire.write(v<<6);
   Wire.endTransmission(); 
 };
@@ -46,8 +50,8 @@ void DAC (int v, char channel, byte mode) {
 void SpiralSearch() {
   int iters = 1000;
   int loopStep = 10;
-  float r = 0;
-  float th = 0;
+  double r = 0;
+  double th = 0;
   
 Serial.println("-------------Spiral-------------");
   for(int i = 0;i < iters;i++) {
@@ -75,19 +79,12 @@ Serial.println("-------------Spiral-------------");
 }
 
 void SteepestDescent() {
-  float currentStep = 1e-2;
+  double currentStep = 5e-2;
   Serial.println("-------------SD-------------");
   while (true) {
     NumericalGradient(currentStep);
 
-    //Serial.print(x);
-    //Serial.print("\t");
-    //Serial.println(y);
-    //Serial.print(gradient[0]);
-    //Serial.print("\t");
-    //Serial.println(gradient[1]);
-
-    float f0 = testF(x, y);
+    double f0 = testF(x, y);
 
     Serial.print(x);
     Serial.print("\t");
@@ -95,51 +92,66 @@ void SteepestDescent() {
     Serial.print("\t");
     Serial.print(f0);
     Serial.print("\t");
-    Serial.println(currentStep*10000.0);
+    Serial.print(testF(x+currentStep, y));
+    Serial.print("\t");
+    Serial.print(testF(x, y+currentStep));
+    Serial.print("\t");
+    Serial.print(testF(x+gradient[0]*currentStep, y+gradient[1]*currentStep));
+    Serial.print("\t");
+    Serial.print(gradient[1]);
+    Serial.print("\t");
+    Serial.println(gradient[0]);
+
 
     // Change currentStep
-    if (false) {
-      float f1 = testF(x + gradient[0]*currentStep*2, y + gradient[1]*currentStep*2);
-      float f2 = testF(x + gradient[0]*currentStep*0.5, y + gradient[1]*currentStep*0.5);
+    if (n>5) {
+      double f1 = testF(x + gradient[0]*currentStep*2, y + gradient[1]*currentStep*2);
+      double f2 = testF(x + gradient[0]*currentStep*0.5, y + gradient[1]*currentStep*0.5);
 
-      //if (f0<thr-100) {
-      //  gotcha = false;
-      //  break;
-      //}
+      if (f0<0.33*thr) {
+        gotcha = false;
+        break;
+      }
 
       if (f1>f0 && f1>f2) {
-        currentStep = 2*currentStep;
+        currentStep = min(2*currentStep,1e-1);
       }
       if (f2>f0 && f2>=f1) {
-        currentStep = 0.5*currentStep;
+        currentStep = max(0.5*currentStep,1e-4);
       }
       n=0;
     }
-    //n+=1;
+    n+=1;
 
-    //Serial.println(gradient[0]/sqrt(gradient[0]*gradient[0]+gradient[1]*gradient[1]+0.01));
-    //Serial.println(gradient[1]/sqrt(gradient[0]*gradient[0]+gradient[1]*gradient[1]+0.01));
     //Serial.print("\t");
-    //Serial.println(gradient[1]*currentStep);
-
-    x += gradient[0]/sqrt(gradient[0]*gradient[0]+gradient[1]*gradient[1]+0.01)*currentStep;
-    y += gradient[1]/sqrt(gradient[0]*gradient[0]+gradient[1]*gradient[1]+0.01)*currentStep;
+    //Serial.print(gradient[0]);
+    //Serial.print("\t");
+    //Serial.println(gradient[1]);
+    
+    x += gradient[0]*currentStep;
+    y += gradient[1]*currentStep;
 
     DAC(int(x*1023),'A',0);
     DAC(int(y*1023),'B',2);
   }
 }
 
-void NumericalGradient(float delta) {
+void NumericalGradient(double delta) {
   // Derivate respect x
-  float f1 = testF(x+delta,y);
-  float f2 = testF(x-delta,y);
+  double f1 = testF(x+delta,y);
+  double f2 = testF(x-delta,y);
   gradient[0] = 0.5*(f1-f2)/delta;
 
   // Derivate respect y
   f1 = testF(x,y+delta);
   f2 = testF(x,y-delta);
   gradient[1] = 0.5*(f1-f2)/delta;
+
+  // Normalize
+  double norm = sqrt(gradient[0]*gradient[0]+gradient[1]*gradient[1]+1e-5);
+  gradient[0] /= norm;
+  gradient[1] /= norm;
+  gradient[2] = norm;
 }
 
 int v=0;
@@ -147,18 +159,7 @@ void setup()
 {
   Wire.begin();
   Wire.setClock(400000);// 400000
-  Serial.begin(9600);
-  while (true) {
-    delay(500);
-    DAC(int(0),'A',0);
-    delay(500);
-    DAC(int(1023),'A',0);
-    delay(500);
-    DAC(int(0),'B',2);
-    delay(500);
-    DAC(int(1023),'B',2);
-  }
-  
+  Serial.begin(9600);  
   while (!Serial);
   Serial.println("Connected");
 }
@@ -167,14 +168,8 @@ void loop()
 {
   v=v+20;
   v++; if (v>1023) {v=0;};
-  //if (analogRead(A3)<10) {
-  //  gotcha = false;
-  //}
   if (!gotcha) {
     SpiralSearch();
   }
   SteepestDescent();
-  //BlindSearch();
-  //DAC(int((sin(v*3.14159*2/1023)+1)*1023/2),'A',0);
-  //DAC(int((cos(3*v*3.14159*2/1023)+1)*1023/2),'B',2);
 }
