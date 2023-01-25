@@ -1,6 +1,6 @@
 #include <Wire.h>
 
-double thr = 100.0;
+double thr = 500.0;
 int dly = 1;
 
 double x = 0.5;
@@ -51,7 +51,7 @@ void DAC (int v, char channel, byte mode) {
 // TODO - corner search
 void SpiralSearch() {
   int iters = 500;
-  int loopStep = 10;
+  int loopStep = 4;
   double r = 0;
   double th = 0;
   
