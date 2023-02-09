@@ -10,10 +10,6 @@ bool gotcha = false;
 
 double gradient[3];
 
-//double testF(double x1, double y1) {
-//  return (1-x1)*(1-x1) + 100*(y1-x1*x1)*(y1-x1*x1);
-//}
-
 float testF(double x1, double y1) {
   float value = 0.0;
   delay(dly);
@@ -27,10 +23,7 @@ float testF(double x1, double y1) {
   value += analogRead(A3);
   delay(dly);
   value += analogRead(A3);
-  //delay(dly);
-  //value += analogRead(A3);
   return value;
-  //return 1023*pow(pow(2.718,-(pow(x1-0.90,2)+pow(y1-0.1,2))),20);
 }
 
 void DAC (int v, char channel, byte mode) {
@@ -48,22 +41,13 @@ void DAC (int v, char channel, byte mode) {
   Wire.endTransmission(); 
 };
 
-// TODO - corner search
 void SpiralSearch() {
   int iters = 500;
   int loopStep = 4;
   double r = 0;
   double th = 0;
   
-  Serial.println("-------------Spiral-------------");
   for(int i = 0;i < iters;i++) {
-    
-    Serial.print(r);
-    Serial.print("\t");
-    Serial.print(y);
-    Serial.print("\t");
-    Serial.println(analogRead(A3));
-
     r = 0.5*i/iters;
     th = 2.0*3.14159*loopStep*i/iters;
 
@@ -82,39 +66,18 @@ void SpiralSearch() {
 
 void SteepestDescent() {
   double currentStep = 1e-2;
-  Serial.println("-------------SD-------------");
   while (true) {
+	// Compute gradient
     NumericalGradient(currentStep);
-
-    double f0 = testF(x, y);
-
-    Serial.print(x);
-    Serial.print("\t");
-    Serial.print(y);
-    Serial.print("\t\t");
-    Serial.print(f0);
-    Serial.print("\t\t");
-    //Serial.print(testF(x+currentStep, y));
-    //Serial.print("\t");
-    //Serial.print(testF(x, y+currentStep));
-    //Serial.print("\t");
-    //Serial.print(testF(x+gradient[0]*currentStep, y+gradient[1]*currentStep));
-    //Serial.print("\t");
-    Serial.print(gradient[0]);
-    Serial.print("\t");
-    Serial.print(gradient[1]);
-    Serial.print("\t");
-    Serial.println(gradient[2]);
-
-    // Change currentStep
-    //currentStep = 2e-3*(10.0-9.0*pow(1.05,gradient[2]));
-
+	
     // Return to spiral search
+	double f0 = testF(x, y);
     if (f0<0.33*thr) {
       gotcha = false;
       break;
     }
     
+	// Move to new position
     x += gradient[0]*currentStep;
     y += gradient[1]*currentStep;
 
@@ -146,7 +109,6 @@ void NumericalGradient(double delta) {
   gradient[2] = norm;
 }
 
-int v=0;
 void setup()
 {
   Wire.begin();
@@ -154,14 +116,10 @@ void setup()
   Serial.begin(9600);  
   while (!Serial);
   Serial.println("Connected");
-
-
 }
 
 void loop()
 {
-  v=v+20;
-  v++; if (v>1023) {v=0;};
   if (!gotcha) {
     SpiralSearch();
   }
